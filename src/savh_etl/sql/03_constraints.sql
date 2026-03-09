@@ -21,9 +21,9 @@ END $$;
 -- =====================
 DO $$
 BEGIN
-  ALTER TABLE core.terceros_vendedor
-    ADD CONSTRAINT chk_terceros_vendedor_comision
-    CHECK (comision >= 0 AND comision <= 1);
+  ALTER TABLE core.salesperson_contracts
+    ADD CONSTRAINT chk_salesperson_contracts_tasa_comision
+    CHECK (tasa_comision >= 0);
 EXCEPTION WHEN duplicate_object THEN
   NULL;
 END $$;
@@ -33,7 +33,7 @@ END $$;
 -- =====================
 DO $$
 BEGIN
-  ALTER TABLE core.pedidos_items
+  ALTER TABLE core.order_items
     ADD CONSTRAINT chk_pedidos_items_kg
     CHECK (kg >= 0);
 EXCEPTION WHEN duplicate_object THEN
@@ -42,7 +42,7 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE core.pedidos_items
+  ALTER TABLE core.order_items
     ADD CONSTRAINT chk_pedidos_items_precio_unit
     CHECK (precio_unit >= 0);
 EXCEPTION WHEN duplicate_object THEN
@@ -51,7 +51,7 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE core.pedidos_items
+  ALTER TABLE core.order_items
     ADD CONSTRAINT chk_pedidos_items_precio_total
     CHECK (precio_total >= 0);
 EXCEPTION WHEN duplicate_object THEN
@@ -63,7 +63,7 @@ END $$;
 -- =====================
 DO $$
 BEGIN
-  ALTER TABLE core.ventas_items
+  ALTER TABLE core.sale_items
     ADD CONSTRAINT chk_ventas_items_kg
     CHECK (kg >= 0);
 EXCEPTION WHEN duplicate_object THEN
@@ -72,7 +72,7 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE core.ventas_items
+  ALTER TABLE core.sale_items
     ADD CONSTRAINT chk_ventas_items_precio_unit
     CHECK (precio_unit >= 0);
 EXCEPTION WHEN duplicate_object THEN
@@ -81,7 +81,7 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE core.ventas_items
+  ALTER TABLE core.sale_items
     ADD CONSTRAINT chk_ventas_items_precio_total
     CHECK (precio_total >= 0);
 EXCEPTION WHEN duplicate_object THEN
@@ -93,7 +93,7 @@ END $$;
 -- =====================
 DO $$
 BEGIN
-  ALTER TABLE core.pagos
+  ALTER TABLE core.payments
     ADD CONSTRAINT chk_pagos_monto
     CHECK (monto >= 0);
 EXCEPTION WHEN duplicate_object THEN
@@ -102,7 +102,7 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE core.aplicaciones_pago
+  ALTER TABLE core.payment_applications
     ADD CONSTRAINT chk_aplicaciones_pago_monto_aplicado
     CHECK (monto_aplicado > 0);
 EXCEPTION WHEN duplicate_object THEN
@@ -114,7 +114,7 @@ END $$;
 -- =====================
 DO $$
 BEGIN
-  ALTER TABLE core.compras_producto_items
+  ALTER TABLE core.product_purchase_items
     ADD CONSTRAINT chk_compras_items_kg
     CHECK (kg >= 0);
 EXCEPTION WHEN duplicate_object THEN
@@ -123,7 +123,7 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE core.compras_producto_items
+  ALTER TABLE core.product_purchase_items
     ADD CONSTRAINT chk_compras_items_costo_unit
     CHECK (costo_unit >= 0);
 EXCEPTION WHEN duplicate_object THEN
@@ -132,7 +132,7 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE core.compras_producto_items
+  ALTER TABLE core.product_purchase_items
     ADD CONSTRAINT chk_compras_items_costo_unit_con_iva
     CHECK (costo_unit_con_iva >= 0);
 EXCEPTION WHEN duplicate_object THEN
@@ -141,7 +141,7 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE core.compras_producto_items
+  ALTER TABLE core.product_purchase_items
     ADD CONSTRAINT chk_compras_items_costo_total
     CHECK (costo_total >= 0);
 EXCEPTION WHEN duplicate_object THEN
@@ -150,7 +150,7 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE core.compras_producto_items
+  ALTER TABLE core.product_purchase_items
     ADD CONSTRAINT chk_compras_items_costo_total_con_iva
     CHECK (costo_total_con_iva >= 0);
 EXCEPTION WHEN duplicate_object THEN
@@ -162,7 +162,7 @@ END $$;
 -- =====================
 DO $$
 BEGIN
-  ALTER TABLE core.ingresos_producto_items
+  ALTER TABLE core.product_receipt_items
     ADD CONSTRAINT chk_ingresos_items_kg
     CHECK (kg >= 0);
 EXCEPTION WHEN duplicate_object THEN
@@ -174,7 +174,7 @@ END $$;
 -- =====================
 DO $$
 BEGIN
-  ALTER TABLE core.mermas
+  ALTER TABLE core.product_losses
     ADD CONSTRAINT chk_mermas_kg
     CHECK (kg >= 0);
 EXCEPTION WHEN duplicate_object THEN
@@ -183,7 +183,7 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE core.mermas
+  ALTER TABLE core.product_losses
     ADD CONSTRAINT chk_mermas_kg_ajustado
     CHECK (kg_ajustado >= 0);
 EXCEPTION WHEN duplicate_object THEN
@@ -195,7 +195,7 @@ END $$;
 -- =====================
 DO $$
 BEGIN
-  ALTER TABLE core.egresos
+  ALTER TABLE core.expenses
     ADD CONSTRAINT chk_egresos_monto
     CHECK (monto >= 0);
 EXCEPTION WHEN duplicate_object THEN
@@ -204,7 +204,7 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE core.pagos_compra
+  ALTER TABLE core.purchase_payment_applications
     ADD CONSTRAINT chk_pagos_compra_monto_aplicado
     CHECK (monto_aplicado > 0);
 EXCEPTION WHEN duplicate_object THEN

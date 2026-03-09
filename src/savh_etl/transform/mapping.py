@@ -50,6 +50,14 @@ def normalize_table_name(name: str) -> str:
     if n == "cat_vehiculos":
         n = "vehiculos"
 
+    # Alias legacy: cat_tipos_egresos -> cat_tipos_egreso
+    if n == "cat_tipos_egresos":
+        n = "cat_tipos_egreso"
+
+    # Alias legacy: cat_tipos_clientes -> cat_tipos_cliente
+    if n == "cat_tipos_clientes":
+        n = "cat_tipos_cliente"
+
     # Regla: cat_* -> dim_*
     if n.startswith("cat_"):
         n = n.replace("cat_", "dim_", 1)
@@ -234,11 +242,12 @@ def mapping_terceros_ids(
     tercero_tables: dict[str, pd.DataFrame],
 ) -> dict[str, pd.DataFrame]:
     """
-    Reemplaza cliente_id / proveedor_id / vendedor_id en TODAS las tablas,
+    Reemplaza cliente_id / proveedor_id / vendedor_id / trabajador_id / destinatario_id en TODAS las tablas,
     mapeando ids antiguos -> terceros.id según terceros.id_old (ej: 'clientes:39').
 
     - Soporta múltiples tokens en id_old: 'clientes:39|proveedores:3'
     - Falla si hay valores no mapeables (no-null) o keys duplicadas ambiguas.
+    - En `egresos`, colapsa trabajador/vendedor/cliente/proveedor en una sola columna `actor_id`.
     """
     if "terceros" not in tercero_tables:
         raise KeyError("tercero_tables debe incluir la tabla 'terceros'")
@@ -260,7 +269,7 @@ def mapping_terceros_ids(
     t["old_id"] = pd.to_numeric(parts[1], errors="coerce").astype("Int64")
     t = t.dropna(subset=["source", "old_id"])
 
-    # --- 2) Construir mapping por source (clientes/proveedores/vendedores) ---
+    # --- 2) Construir mapping por source (clientes/proveedores/vendedores/trabajadores/destinatarios) ---
     mappings: dict[str, pd.Series] = {}
     for src, g in t.groupby("source"):
         # detecta duplicados ambiguos: mismo old_id -> distinto tercero_id
@@ -277,6 +286,8 @@ def mapping_terceros_ids(
         "cliente_id": "clientes",
         "proveedor_id": "proveedores",
         "vendedor_id": "vendedores",
+        "trabajador_id": "trabajadores",
+        "destinatario_id": "destinatarios",
     }
 
     # --- 3) Aplicar mapping en todas las tablas ---
@@ -305,7 +316,25 @@ def mapping_terceros_ids(
 
             dfo[col] = mapped
 
+        if table_name == "egresos":
+            actor_cols = [c for c in ("trabajador_id", "vendedor_id", "cliente_id", "proveedor_id") if c in dfo.columns]
+            if actor_cols:
+                actor_frame = dfo[actor_cols].apply(pd.to_numeric, errors="coerce").astype("Int64")
+                actor_count = actor_frame.notna().sum(axis=1)
+                multi_actor_mask = actor_count > 1
+                if multi_actor_mask.any():
+                    debug_cols = [c for c in ("id", *actor_cols) if c in dfo.columns]
+                    examples = dfo.loc[multi_actor_mask, debug_cols].head(10).to_dict("records")
+                    raise ValueError(
+                        f"[{table_name}] Se detectaron {int(multi_actor_mask.sum())} filas con más de un actor "
+                        f"(trabajador/vendedor/cliente/proveedor). Ejemplos: {examples}"
+                    )
+                dfo["actor_id"] = actor_frame.bfill(axis=1).iloc[:, 0].astype("Int64")
+                dfo = dfo.drop(columns=actor_cols)
+
         out[table_name] = dfo
 
-    log.info("Mapping terceros OK: cliente_id/proveedor_id/vendedor_id -> terceros.id")
+    log.info(
+        "Mapping terceros OK: cliente_id/proveedor_id/vendedor_id/trabajador_id/destinatario_id -> terceros.id"
+    )
     return out

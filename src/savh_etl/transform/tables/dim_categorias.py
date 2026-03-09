@@ -4,8 +4,6 @@ from savh_etl.transform.steps import (
     step_parse_int,
     step_parse_bool,
     step_rename_values_to_ids,
-    step_add_created_at,
-    step_add_updated_at,
 )
 
 

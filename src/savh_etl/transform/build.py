@@ -20,6 +20,8 @@ def build_terceros_tables(tables: dict[str, pd.DataFrame]) -> dict[str, pd.DataF
       - terceros_cliente
       - terceros_proveedor
       - terceros_vendedor
+      - terceros_trabajador
+      - terceros_destinatario
 
     Reglas clave:
       - Genera PK incremental `terceros.id`.
@@ -32,13 +34,16 @@ def build_terceros_tables(tables: dict[str, pd.DataFrame]) -> dict[str, pd.DataF
     Returns:
         dict[str, pd.DataFrame]: Diccionario con tablas derivados.
     """
-    if "clientes" not in tables or "proveedores" not in tables or "vendedores" not in tables:
-        missing = [k for k in ("clientes", "proveedores", "vendedores") if k not in tables]
+    required = ("clientes", "proveedores", "vendedores", "trabajadores", "destinatarios")
+    if any(k not in tables for k in required):
+        missing = [k for k in required if k not in tables]
         raise KeyError(f"Faltan tablas en `tables`: {missing}")
 
     df_clientes = tables["clientes"].copy()
     df_prov = tables["proveedores"].copy()
     df_vend = tables["vendedores"].copy()
+    df_trab = tables["trabajadores"].copy()
+    df_dest = tables["destinatarios"].copy()
 
     # -----------------------------
     # helpers
@@ -47,6 +52,7 @@ def build_terceros_tables(tables: dict[str, pd.DataFrame]) -> dict[str, pd.DataF
         return (
             s.astype("string")
              .str.strip()
+             .str.replace(r"\s+", " ", regex=True)
              .str.casefold()
              .replace({"": pd.NA})
         )
@@ -66,12 +72,26 @@ def build_terceros_tables(tables: dict[str, pd.DataFrame]) -> dict[str, pd.DataF
     # -----------------------------
     # 1) Armar staging unificado (sin PK nueva aún)
     # -----------------------------
-    def _prep_source(df: pd.DataFrame, source: str) -> pd.DataFrame:
+    def _prep_source(
+        df: pd.DataFrame,
+        source: str,
+        *,
+        nombre_override: pd.Series | None = None,
+    ) -> pd.DataFrame:
+        nombre = (
+            nombre_override.astype("string")
+            if nombre_override is not None
+            else (
+                df["nombre"]
+                if "nombre" in df.columns
+                else pd.Series([pd.NA] * len(df), dtype="string")
+            )
+        )
         out = pd.DataFrame({
             "source": source,
             "source_id": df["id"].astype("Int64"),
             "rut": df["rut"] if "rut" in df.columns else pd.Series([pd.NA] * len(df), dtype="string"),
-            "nombre": df["nombre"] if "nombre" in df.columns else pd.Series([pd.NA] * len(df), dtype="string"),
+            "nombre": nombre,
             "alias": df["alias"] if "alias" in df.columns else pd.Series([pd.NA] * len(df), dtype="string"),
             "telefono": df["telefono"] if "telefono" in df.columns else pd.Series([pd.NA] * len(df), dtype="string"),
             "direccion": df["direccion"] if "direccion" in df.columns else pd.Series([pd.NA] * len(df), dtype="string"),
@@ -82,25 +102,54 @@ def build_terceros_tables(tables: dict[str, pd.DataFrame]) -> dict[str, pd.DataF
         out["id_old_key"] = _src_key(source, out["source_id"])
         return out
 
+    nombre_trab = (
+        df_trab["nombre"].astype("string")
+        if "nombre" in df_trab.columns
+        else pd.Series([pd.NA] * len(df_trab), dtype="string")
+    )
+    apellido_trab = (
+        df_trab["apellido"].astype("string")
+        if "apellido" in df_trab.columns
+        else pd.Series([pd.NA] * len(df_trab), dtype="string")
+    )
+    # nombre en terceros para trabajadores: "nombre + apellido" cuando exista.
+    nombre_tercero_trab = (nombre_trab.fillna("").str.strip() + " " + apellido_trab.fillna("").str.strip()).str.strip()
+    nombre_tercero_trab = nombre_tercero_trab.mask(nombre_tercero_trab == "", pd.NA).astype("string")
+
     st = pd.concat(
         [
             _prep_source(df_clientes, "clientes"),
             _prep_source(df_prov, "proveedores"),
             _prep_source(df_vend, "vendedores"),
+            _prep_source(df_trab, "trabajadores", nombre_override=nombre_tercero_trab),
+            _prep_source(df_dest, "destinatarios"),
         ],
         ignore_index=True,
     )
 
     # -----------------------------
-    # 2) Dedupe (para respetar UNIQUE(rut) en terceros)
-    #     - Si hay rut => dedupe por rut normalizado
-    #     - Si no hay rut => dedupe por nombre+telefono normalizado (simple)
+    # 2) Dedupe (regla de negocio actual)
+    #     - Si hay nombre => dedupe por nombre normalizado
+    #     - Si no hay nombre y hay rut => dedupe por rut normalizado
+    #     - Si faltan ambos => clave unica por source/source_id
     # -----------------------------
     rut_key = _norm(st["rut"])
     name_key = _norm(st["nombre"])
-    tel_key = _norm(st["telefono"])
-
-    st["dedupe_key"] = rut_key.where(rut_key.notna(), "name:" + name_key.fillna("") + "|tel:" + tel_key.fillna(""))
+    st["dedupe_key"] = "name:" + name_key.fillna("")
+    no_name_mask = name_key.isna()
+    st.loc[no_name_mask & rut_key.notna(), "dedupe_key"] = "rut:" + rut_key[no_name_mask & rut_key.notna()].fillna("")
+    missing_name_mask = no_name_mask & rut_key.isna()
+    st.loc[missing_name_mask, "dedupe_key"] = (
+        "missing_name:"
+        + st.loc[missing_name_mask, "source"].astype("string")
+        + ":"
+        + st.loc[missing_name_mask, "source_id"].astype("Int64").astype("string")
+    )
+    if missing_name_mask.any():
+        log.warning(
+            "Terceros con rut/nombre vacios: %d filas. Se dedupean por source+source_id.",
+            int(missing_name_mask.sum()),
+        )
 
     # agregación (primero no-nulo / min / max)
     g = st.groupby("dedupe_key", dropna=False)
@@ -117,6 +166,24 @@ def build_terceros_tables(tables: dict[str, pd.DataFrame]) -> dict[str, pd.DataF
         # temporal para mapear luego (puede tener varios)
         "id_old": g["id_old_key"].apply(lambda s: "|".join(sorted(set(s.dropna().astype(str).tolist())))).astype("string"),
     }).reset_index(drop=True)
+
+    # Validacion defensiva: nombres no vacios deben ser unicos tras dedupe.
+    nombre_norm = _norm(terceros["nombre"])
+    dup_names = nombre_norm[nombre_norm.notna() & nombre_norm.duplicated()].unique().tolist()
+    if dup_names:
+        examples: list[str] = []
+        for name in dup_names[:10]:
+            ids = (
+                terceros.loc[nombre_norm.eq(name), "id_old"]
+                .astype("string")
+                .dropna()
+                .tolist()
+            )
+            examples.append(f"{name} -> {ids}")
+        raise ValueError(
+            "Duplicados en terceros por nombre normalizado. "
+            f"Ejemplos: {examples}"
+        )
 
     # PK nueva incremental
     terceros.insert(0, "id", pd.Series(range(1, len(terceros) + 1), dtype="Int64"))
@@ -142,7 +209,6 @@ def build_terceros_tables(tables: dict[str, pd.DataFrame]) -> dict[str, pd.DataF
     # terceros_cliente
     terceros_cliente = pd.DataFrame({
         "tercero_id": _map_tercero_id("clientes", df_clientes["id"]),
-        # si ya existe tipo_id, úsalo; si no, deja NA y conserva `tipo` temporal (para mapear a DIM_TIPO_CLIENTE)
         "tipo_id": (df_clientes["tipo_id"].astype("Int64") if "tipo_id" in df_clientes.columns else pd.Series([pd.NA] * len(df_clientes), dtype="Int64")),
         "vendedor_id": (
             _map_tercero_id("vendedores", df_clientes["vendedor_id"])
@@ -154,10 +220,6 @@ def build_terceros_tables(tables: dict[str, pd.DataFrame]) -> dict[str, pd.DataF
         "created_at": df_clientes["created_at"] if "created_at" in df_clientes.columns else pd.Series([pd.NA] * len(df_clientes)),
         "updated_at": df_clientes["updated_at"] if "updated_at" in df_clientes.columns else pd.Series([pd.NA] * len(df_clientes)),
     })
-
-    # columna temporal útil (si hoy aún tienes "tipo" string)
-    if "tipo" in df_clientes.columns and "tipo_id" not in df_clientes.columns:
-        terceros_cliente["tipo"] = df_clientes["tipo"].astype("string")
 
     terceros_cliente = terceros_cliente.dropna(subset=["tercero_id"]).drop_duplicates(subset=["tercero_id"])
     terceros_cliente["tercero_id"] = terceros_cliente["tercero_id"].astype("Int64")
@@ -174,8 +236,11 @@ def build_terceros_tables(tables: dict[str, pd.DataFrame]) -> dict[str, pd.DataF
     # terceros_vendedor
     terceros_vendedor = pd.DataFrame({
         "tercero_id": _map_tercero_id("vendedores", df_vend["id"]),
-        "modelo_comercial": df_vend["modelo_comercial"].astype("string") if "modelo_comercial" in df_vend.columns else pd.Series([pd.NA] * len(df_vend), dtype="string"),
-        "comision": df_vend["comision"].astype("Float64") if "comision" in df_vend.columns else pd.Series([pd.NA] * len(df_vend), dtype="Float64"),
+        "modelo_comercial_id": (
+            df_vend["modelo_comercial_id"].astype("Int64")
+            if "modelo_comercial_id" in df_vend.columns
+            else pd.Series([pd.NA] * len(df_vend), dtype="Int64")
+        ),
         "is_active": _to_bool(df_vend["is_active"] if "is_active" in df_vend.columns else pd.Series([pd.NA] * len(df_vend))),
         "created_at": df_vend["created_at"] if "created_at" in df_vend.columns else pd.Series([pd.NA] * len(df_vend)),
         "updated_at": df_vend["updated_at"] if "updated_at" in df_vend.columns else pd.Series([pd.NA] * len(df_vend)),
@@ -183,9 +248,78 @@ def build_terceros_tables(tables: dict[str, pd.DataFrame]) -> dict[str, pd.DataF
     terceros_vendedor = terceros_vendedor.dropna(subset=["tercero_id"]).drop_duplicates(subset=["tercero_id"])
     terceros_vendedor["tercero_id"] = terceros_vendedor["tercero_id"].astype("Int64")
 
+    # terceros_trabajador
+    terceros_trabajador = pd.DataFrame({
+        "tercero_id": _map_tercero_id("trabajadores", df_trab["id"]),
+        "cargo": df_trab["cargo"].astype("string") if "cargo" in df_trab.columns else pd.Series([pd.NA] * len(df_trab), dtype="string"),
+        "created_at": df_trab["created_at"] if "created_at" in df_trab.columns else pd.Series([pd.NA] * len(df_trab)),
+        "updated_at": df_trab["updated_at"] if "updated_at" in df_trab.columns else pd.Series([pd.NA] * len(df_trab)),
+    })
+    terceros_trabajador = terceros_trabajador.dropna(subset=["tercero_id"]).drop_duplicates(subset=["tercero_id"])
+    terceros_trabajador["tercero_id"] = terceros_trabajador["tercero_id"].astype("Int64")
+
+    # terceros_destinatario
+    terceros_destinatario = pd.DataFrame({
+        "tercero_id": _map_tercero_id("destinatarios", df_dest["id"]),
+        "cliente_id": (
+            _map_tercero_id("clientes", df_dest["cliente_id"])
+            if "cliente_id" in df_dest.columns
+            else pd.Series([pd.NA] * len(df_dest), dtype="Int64")
+        ),
+        "is_active": _to_bool(df_dest["is_active"], default=True) if "is_active" in df_dest.columns else pd.Series([True] * len(df_dest), dtype="boolean"),
+        "created_at": df_dest["created_at"] if "created_at" in df_dest.columns else pd.Series([pd.NA] * len(df_dest)),
+        "updated_at": df_dest["updated_at"] if "updated_at" in df_dest.columns else pd.Series([pd.NA] * len(df_dest)),
+    })
+    terceros_destinatario = terceros_destinatario.dropna(subset=["tercero_id"]).drop_duplicates(subset=["tercero_id"])
+    terceros_destinatario["tercero_id"] = terceros_destinatario["tercero_id"].astype("Int64")
+    terceros_destinatario["cliente_id"] = terceros_destinatario["cliente_id"].astype("Int64")
+
     return {
         "terceros": terceros,
         "terceros_cliente": terceros_cliente,
         "terceros_proveedor": terceros_proveedor,
         "terceros_vendedor": terceros_vendedor,
+        "terceros_trabajador": terceros_trabajador,
+        "terceros_destinatario": terceros_destinatario,
+    }
+
+
+def build_assets_tables(tables: dict[str, pd.DataFrame]) -> dict[str, pd.DataFrame]:
+    """Construye tablas derivadas de activos desde la tabla vehiculos."""
+    if "vehiculos" not in tables:
+        raise KeyError("Falta tabla en `tables`: ['vehiculos']")
+
+    df_vehiculos = tables["vehiculos"].copy()
+    row_count = len(df_vehiculos)
+
+    def _col(name: str, *, dtype: str, default: object = pd.NA) -> pd.Series:
+        if name in df_vehiculos.columns:
+            return df_vehiculos[name].astype(dtype)
+        return pd.Series([default] * row_count, dtype=dtype)
+
+    assets = pd.DataFrame({
+        "id": _col("id", dtype="Int64"),
+        "alias": _col("alias", dtype="string"),
+        "tipo_activo_id": pd.Series([1] * row_count, dtype="Int64"),
+    })
+
+    vehicle_type = (
+        _col("tipo", dtype="string")
+        if "tipo" in df_vehiculos.columns
+        else _col("tipo_vehiculo", dtype="string")
+    )
+
+    assets_vehicles = pd.DataFrame({
+        "activo_id": _col("id", dtype="Int64"),
+        "patente": _col("patente", dtype="string"),
+        "tipo": vehicle_type,
+        "marca": _col("marca", dtype="string"),
+        "modelo": _col("modelo", dtype="string"),
+        "anio": _col("anio", dtype="Int64"),
+        "is_active": _col("is_active", dtype="boolean", default=True),
+    })
+
+    return {
+        "assets": assets,
+        "assets_vehicles": assets_vehicles,
     }

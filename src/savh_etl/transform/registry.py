@@ -8,7 +8,9 @@ from savh_etl.transform.tables.clientes import get_clientes_pipeline
 from savh_etl.transform.tables.codigos import get_codigos_pipeline
 from savh_etl.transform.tables.compras_producto import get_compras_producto_pipeline
 from savh_etl.transform.tables.compras_producto_items import get_compras_producto_items_pipeline
+from savh_etl.transform.tables.contratos_vendedor import get_contratos_vendedor_pipeline
 from savh_etl.transform.tables.destinatarios import get_destinatarios_pipeline
+from savh_etl.transform.tables.dim_base_comision_vendedor import get_dim_base_comision_vendedor_pipeline
 from savh_etl.transform.tables.dim_calibres import get_dim_calibres_pipeline
 from savh_etl.transform.tables.dim_categorias import get_dim_categorias_pipeline
 from savh_etl.transform.tables.dim_convenciones import get_dim_convenciones_pipeline
@@ -21,6 +23,8 @@ from savh_etl.transform.tables.dim_estados_venta_pago import get_dim_estados_ven
 from savh_etl.transform.tables.dim_grupos_egresos import get_dim_grupos_egresos_pipeline
 from savh_etl.transform.tables.dim_medios_pago import get_dim_medios_pago_pipeline
 from savh_etl.transform.tables.dim_modelos_comerciales import get_dim_modelos_comerciales_pipeline
+from savh_etl.transform.tables.dim_tipo_contrato_vendedor import get_dim_tipo_contrato_vendedor_pipeline
+from savh_etl.transform.tables.dim_tipos_cliente import get_dim_tipos_cliente_pipeline
 from savh_etl.transform.tables.dim_tipos_economicos import get_dim_tipos_economicos_pipeline
 from savh_etl.transform.tables.dim_tipos_egreso import get_dim_tipos_egreso_pipeline
 from savh_etl.transform.tables.dim_tipos_venta import get_dim_tipos_venta_pipeline
@@ -57,7 +61,9 @@ def get_registry(tables: dict[str, pd.DataFrame]) -> dict[str, TablePipeline]:
         "codigos": get_codigos_pipeline(),
         "compras_producto": get_compras_producto_pipeline(tables),
         "compras_producto_items": get_compras_producto_items_pipeline(tables),
+        "contratos_vendedor": get_contratos_vendedor_pipeline(tables),
         "destinatarios": get_destinatarios_pipeline(tables),
+        "dim_base_comision_vendedor": get_dim_base_comision_vendedor_pipeline(),
         "dim_calibres": get_dim_calibres_pipeline(tables),
         "dim_categorias": get_dim_categorias_pipeline(tables),
         "dim_convenciones": get_dim_convenciones_pipeline(),
@@ -70,6 +76,8 @@ def get_registry(tables: dict[str, pd.DataFrame]) -> dict[str, TablePipeline]:
         "dim_grupos_egresos": get_dim_grupos_egresos_pipeline(),
         "dim_medios_pago": get_dim_medios_pago_pipeline(),
         "dim_modelos_comerciales": get_dim_modelos_comerciales_pipeline(),
+        "dim_tipo_contrato_vendedor": get_dim_tipo_contrato_vendedor_pipeline(),
+        "dim_tipos_cliente": get_dim_tipos_cliente_pipeline(),
         "dim_tipos_economicos": get_dim_tipos_economicos_pipeline(),
         "dim_tipos_egreso": get_dim_tipos_egreso_pipeline(tables),
         "dim_tipos_venta": get_dim_tipos_venta_pipeline(),

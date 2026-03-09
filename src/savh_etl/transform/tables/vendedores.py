@@ -15,10 +15,9 @@ from savh_etl.transform.steps import (
 def get_vendedores_pipeline() -> TablePipeline:
     return TablePipeline(
         steps=[
-            step_parse_int(["id", "modelo_comercial"]),
-            step_parse_float(["comision", "modelo_comercial"]),
-            step_parse_bool(["is_active", "tipo"]),
+            step_parse_int(["id", "cliente_id"]),
             step_parse_float(["comision"]),
+            step_parse_bool(["is_active"]),
             step_add_created_at(),
             step_add_updated_at(),
         ],

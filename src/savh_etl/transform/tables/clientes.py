@@ -17,9 +17,9 @@ def get_clientes_pipeline(tables: dict[str, pd.DataFrame]) -> TablePipeline:
     return TablePipeline(
         steps=[
             step_rename_values_to_ids(
-                cols=["vendedor"],                     # columna en clientes
-                table_name=["vendedores"],            # lookup table
-                column_lookup=["nombre"],            # columna en lookup
+                cols=["tipo", "vendedor"],
+                table_name=["dim_tipos_cliente", "vendedores"],
+                column_lookup=["nombre", "nombre"],
                 tables=tables,
             ),
             step_parse_int(["id", "tipo_id", "vendedor_id"]),

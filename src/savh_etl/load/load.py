@@ -266,7 +266,22 @@ def load(
             rows_by_table[f"{schema}.{table}"] = int(len(df2))
 
         for spec in plan.order:
-            _load_one(table=spec.name, df_key=spec.key())
+            spec_key = spec.key()
+            spec_mode = getattr(spec.mode, "value", str(spec.mode))
+            if spec_mode == "insert" and spec_key not in dict_df:
+                msg = (
+                    f"DataFrame faltante para plan de carga: table='{spec.name}' "
+                    f"df_key='{spec_key}'. Revisa el df_key del TableSpec."
+                )
+                if spec.name == "dim_expense_types":
+                    raise ValueError(
+                        msg
+                        + " Esta dimensión es crítica para la FK "
+                        + "expenses(tipo_egreso_id) -> dim_expense_types(id)."
+                    )
+                log.warning(msg)
+                continue
+            _load_one(table=spec.name, df_key=spec_key)
 
         # fallback: si hay dataframes extra que coinciden con tablas existentes en core
         for df_key in dict_df.keys():

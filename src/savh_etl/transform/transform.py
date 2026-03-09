@@ -12,7 +12,7 @@ from copy import deepcopy
 from savh_etl.transform.pipeline import apply_pipeline, TransformContext
 from savh_etl.transform.registry import get_registry
 from savh_etl.transform.mapping import mapping_terceros_ids, normalize_tables_names
-from savh_etl.transform.build import build_terceros_tables
+from savh_etl.transform.build import build_terceros_tables, build_assets_tables
 from savh_etl.transform.tables.all_tables import get_all_tables_pipeline
 from savh_etl.utils.logging import get_logger
 log = get_logger(__name__)
@@ -55,6 +55,8 @@ def transform(dict_df: dict[str, pd.DataFrame]) -> dict[str, pd.DataFrame]:
     """
     all_tables = transform_all_tables(dict_df)
     tercero_tables = build_terceros_tables(all_tables)
+    asset_tables = build_assets_tables(all_tables)
     all_tables = mapping_terceros_ids(all_tables, tercero_tables)
     all_tables.update(tercero_tables)
+    all_tables.update(asset_tables)
     return all_tables

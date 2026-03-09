@@ -3,6 +3,7 @@ from savh_etl.transform.pipeline import TablePipeline
 from savh_etl.transform.steps import (
     step_parse_int,
     step_parse_float,
+    step_rename,
     step_rename_values_to_ids,
     step_add_audit_columns,
     step_parse_dates,
@@ -45,12 +46,13 @@ def get_egresos_pipeline(tables: dict[str, pd.DataFrame]) -> TablePipeline:
                 ],
                 tables=tables,
             ),
+            step_rename({"vehiculo_id": "activo_id"}),
             step_parse_int([
                 "id", 
                 "tipo_economico_id", 
                 "tipo_egreso_id", 
                 "medio_pago_id", 
-                "vehiculo_id", 
+                "activo_id", 
                 "trabajador_id", 
                 "vendedor_id", 
                 "cliente_id", 
