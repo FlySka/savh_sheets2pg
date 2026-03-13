@@ -301,6 +301,7 @@ def build_assets_tables(tables: dict[str, pd.DataFrame]) -> dict[str, pd.DataFra
         "id": _col("id", dtype="Int64"),
         "alias": _col("alias", dtype="string"),
         "tipo_activo_id": pd.Series([1] * row_count, dtype="Int64"),
+        "is_active": _col("is_active", dtype="boolean", default=True),
     })
 
     vehicle_type = (
@@ -316,7 +317,6 @@ def build_assets_tables(tables: dict[str, pd.DataFrame]) -> dict[str, pd.DataFra
         "marca": _col("marca", dtype="string"),
         "modelo": _col("modelo", dtype="string"),
         "anio": _col("anio", dtype="Int64"),
-        "is_active": _col("is_active", dtype="boolean", default=True),
     })
 
     return {
