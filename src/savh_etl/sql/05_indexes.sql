@@ -23,9 +23,6 @@ CREATE UNIQUE INDEX IF NOT EXISTS ux_dim_calibres_producto_calibre_convencion
 CREATE UNIQUE INDEX IF NOT EXISTS ux_dim_convenciones_convencion
   ON core.dim_conventions (convencion);
 
-CREATE UNIQUE INDEX IF NOT EXISTS ux_aplicaciones_pago_pago_venta
-  ON core.payment_applications (pago_id, venta_id);
-
 CREATE UNIQUE INDEX IF NOT EXISTS ux_pagos_compra_compra_egreso
   ON core.purchase_payment_applications (compra_id, egreso_id);
 
@@ -91,11 +88,6 @@ CREATE INDEX IF NOT EXISTS ix_pagos_fecha            ON core.payments (fecha);
 CREATE INDEX IF NOT EXISTS ix_pagos_cliente_id       ON core.payments (cliente_id);
 CREATE INDEX IF NOT EXISTS ix_pagos_medio_pago_id    ON core.payments (medio_pago_id);
 CREATE INDEX IF NOT EXISTS ix_pagos_ingest_event_id  ON core.payments (ingest_event_id);
-
--- aplicaciones_pago: el UNIQUE (pago_id, venta_id) no ayuda a filtrar SOLO por venta_id
-CREATE INDEX IF NOT EXISTS ix_aplicaciones_pago_venta_id  ON core.payment_applications (venta_id);
-CREATE INDEX IF NOT EXISTS ix_aplicaciones_pago_pago_id   ON core.payment_applications (pago_id);
-CREATE INDEX IF NOT EXISTS ix_aplicaciones_pago_ingest_event_id ON core.payment_applications (ingest_event_id);
 
 -- --- COMPRAS / INGRESOS / MERMAS ---
 CREATE INDEX IF NOT EXISTS ix_compras_producto_fecha        ON core.product_purchases (fecha);

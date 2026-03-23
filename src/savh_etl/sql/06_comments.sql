@@ -14,8 +14,6 @@ COMMENT ON COLUMN core.sale_items.precio_total IS 'CHECK (precio_total >= 0)';
 
 COMMENT ON COLUMN core.payments.monto IS 'CHECK (monto >= 0)';
 
-COMMENT ON COLUMN core.payment_applications.monto_aplicado IS 'CHECK (monto_aplicado > 0)';
-
 COMMENT ON COLUMN core.product_purchase_items.kg IS 'CHECK (kg >= 0)';
 
 COMMENT ON COLUMN core.product_purchase_items.costo_unit IS 'CHECK (costo_unit >= 0)';

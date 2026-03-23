@@ -100,15 +100,6 @@ EXCEPTION WHEN duplicate_object THEN
   NULL;
 END $$;
 
-DO $$
-BEGIN
-  ALTER TABLE core.payment_applications
-    ADD CONSTRAINT chk_aplicaciones_pago_monto_aplicado
-    CHECK (monto_aplicado > 0);
-EXCEPTION WHEN duplicate_object THEN
-  NULL;
-END $$;
-
 -- =====================
 -- 🧾 Compras
 -- =====================
@@ -207,6 +198,18 @@ BEGIN
   ALTER TABLE core.purchase_payment_applications
     ADD CONSTRAINT chk_pagos_compra_monto_aplicado
     CHECK (monto_aplicado > 0);
+EXCEPTION WHEN duplicate_object THEN
+  NULL;
+END $$;
+
+-- =====================
+-- 📡 Entity Events
+-- =====================
+DO $$
+BEGIN
+  ALTER TABLE ingest.entity_events
+    ADD CONSTRAINT uq_entity_events_type_id_event_at
+    UNIQUE (entity_type_id, entity_id, event_type_id, event_at);
 EXCEPTION WHEN duplicate_object THEN
   NULL;
 END $$;

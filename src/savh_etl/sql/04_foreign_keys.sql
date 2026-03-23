@@ -19,8 +19,6 @@ ALTER TABLE core.sale_items ADD FOREIGN KEY (deleted_by_user_id) REFERENCES core
 
 ALTER TABLE core.payments ADD FOREIGN KEY (deleted_by_user_id) REFERENCES core.app_users (id) ON DELETE SET NULL;
 
-ALTER TABLE core.payment_applications ADD FOREIGN KEY (deleted_by_user_id) REFERENCES core.app_users (id) ON DELETE SET NULL;
-
 ALTER TABLE core.product_purchases ADD FOREIGN KEY (deleted_by_user_id) REFERENCES core.app_users (id) ON DELETE SET NULL;
 
 ALTER TABLE core.product_purchase_items ADD FOREIGN KEY (deleted_by_user_id) REFERENCES core.app_users (id) ON DELETE SET NULL;
@@ -50,8 +48,6 @@ ALTER TABLE core.sales ADD FOREIGN KEY (ingest_event_id) REFERENCES ingest.inges
 ALTER TABLE core.sale_items ADD FOREIGN KEY (ingest_event_id) REFERENCES ingest.ingest_events (id) ON DELETE SET NULL;
 
 ALTER TABLE core.payments ADD FOREIGN KEY (ingest_event_id) REFERENCES ingest.ingest_events (id) ON DELETE SET NULL;
-
-ALTER TABLE core.payment_applications ADD FOREIGN KEY (ingest_event_id) REFERENCES ingest.ingest_events (id) ON DELETE SET NULL;
 
 ALTER TABLE core.product_purchases ADD FOREIGN KEY (ingest_event_id) REFERENCES ingest.ingest_events (id) ON DELETE SET NULL;
 
@@ -170,10 +166,6 @@ ALTER TABLE core.sale_items ADD FOREIGN KEY (calibre_id) REFERENCES core.dim_cal
 ALTER TABLE core.payments ADD FOREIGN KEY (cliente_id) REFERENCES core.parties_customer (tercero_id) ON DELETE RESTRICT;
 
 ALTER TABLE core.payments ADD FOREIGN KEY (medio_pago_id) REFERENCES core.dim_payment_methods (id) ON DELETE RESTRICT;
-
-ALTER TABLE core.payment_applications ADD FOREIGN KEY (pago_id) REFERENCES core.payments (id) ON DELETE CASCADE;
-
-ALTER TABLE core.payment_applications ADD FOREIGN KEY (venta_id) REFERENCES core.sales (id) ON DELETE CASCADE;
 
 ALTER TABLE core.product_purchases ADD FOREIGN KEY (proveedor_id) REFERENCES core.parties_supplier (tercero_id) ON DELETE SET NULL;
 

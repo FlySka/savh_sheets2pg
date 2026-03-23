@@ -232,7 +232,6 @@ def build_savh_load_plan() -> LoadPlan:
 
         # 💰 pagos
         TableSpec("payments", df_key="pagos", depends_on=("parties_customer", "dim_payment_methods", "app_users")),
-        TableSpec("payment_applications", df_key="aplicaciones_pago", depends_on=("payments", "sales", "app_users")),
 
         # 🧾 compras / ingresos / mermas
         TableSpec("product_purchases", df_key="compras_producto", depends_on=("codes", "parties_supplier", "dim_purchase_statuses", "app_users")),
